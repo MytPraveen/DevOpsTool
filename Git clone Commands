@@ -1,0 +1,31 @@
+
+
+##### The above command is used to clone all the branches in the github
+git clone --mirror <repository_url>
+
+#####Once the cloning process is complete, navigate into the newly created directory:
+
+cd <repository_name>.git
+#####Replace <repository_name> with the name of the repository.
+
+
+git branch -a
+###List all the branches in the repository:
+
+git checkout <branch_name>
+####To work with a specific branch, you can check it out as follows:
+
+----------------------------------------------------------------------------------
+If you've cloned a repository using the --mirror option and you want to push it to a new repository, you can follow these steps:
+
+
+git remote add new_origin <new_repository_url>
+
+
+git push new_origin --all
+git push new_origin --tags
+
+
+git remote remove origin
+###This step is optional and depends on whether you want to keep the old origin as a remote.
+

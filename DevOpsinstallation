@@ -1,0 +1,134 @@
+#How to install jenkins tool in linux 
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+1.#First install the openjdk java
+        
+        sudo apt update
+        sudo apt install fontconfig openjdk-17-jre
+        java -version
+
+
+        #Long Term Support release:
+
+        sudo wget -O /usr/share/keyrings/jenkins-keyring.asc \
+  https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key
+
+ echo deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] \
+  https://pkg.jenkins.io/debian-stable binary/ | sudo tee \
+  /etc/apt/sources.list.d/jenkins.list > /dev/null
+
+        sudo apt-get update
+        sudo apt-get install jenkins
+
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+
+#Docker installation:
+
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+# Add Docker's official GPG key:
+sudo apt-get update
+sudo apt-get install ca-certificates curl
+sudo install -m 0755 -d /etc/apt/keyrings
+sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+sudo chmod a+r /etc/apt/keyrings/docker.asc
+
+# Add the repository to Apt sources:
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+sudo apt-get update
+
+######In this case, we can create a file and run that file to execute the command (automation)
+###for Example: 
+
+vi dock.sh
+sudo chmod +x dock.sh 
+./dock.sh
+
+#After installing docker 
+sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+sudo chmod 666 /var/run/docker.sock
+sudo docker run hello-world
+
+
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+
+#Sonarqube installation:
+
+#Installing sonarqube through docker containter (Easiest method)
+
+docker pull sonarqube:lts-community 
+
+docker run -d --name sonar -p 9000:9000 sonarqube:lts-community
+
+
+///////////////////////////////////////////////////////////////
+
+Nexus installation:
+
+#installing nexus through docker container
+
+docker pull sonatype/nexus3
+
+docker run -itd --name sonanexus -p 8081:8081 sonatype/nexus3 /bin/bash
+
+In nexus get the password inside the admin.password
+##PATH:
+    docker exec -it [containerID] /bin/bash
+    ls 
+    cd sonatype-work
+    ls 
+    cd nexus3/
+    ls 
+    cat admin.password
+
+copy and paste in nexus server and try to change the password 
+
+
+#######or Try this alternate method to install sonatype/nexus3
+
+cd opt/
+sudo apt install java-1.8.0-openjdk.x86_64 -y
+wget https://download.sonatype.com/nexus/3/nexus-3.66.0-02-unix.tar.gz
+sudo tar -zxvf nexus-3.66.0-02-unix.tar.gz
+sudo mv nexus-3.66.0-02 nexus
+sudo adduser nexus
+sudo passwd nexus
+sudo chown -R nexus:nexus /opt/nexus
+sudo vi /opt/nexus/bin/nexus.rc
+run_as_user="nexus"
+sudo ln -s /opt/nexus/bin/nexus /etc/init.d/nexus
+
+su - nexus
+id
+service nexus start
+
+Default login:
+user: admin
+password: admin123
+
+
+#maven installation 
+
+cd /opt
+wget [maven tar.gz link]
+unzip 
+cd [apache maven file]
+ls
+mv apache-maven-3.9.6/ maven-3.9
+ls
+cd maven-3.9/bin/
+ls -l
+pwd
+export PATH=$PATH:/opt/maven-3.9/bin
+mvn --version
+vi ~/.bashrc
+go to last line and save this export PATH=$PATH:/opt/maven-3.9/bin and save and quit :wq!
+restart the bashrc by [ source ~/.bashrc ]
+
+

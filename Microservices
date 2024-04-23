@@ -1,0 +1,193 @@
+Create a Ec2 instance and name it as Server and go with t2.large and 25gb 
+
+-----> sudo apt update
+-----> mkdir scripts
+-----> cd scripts
+------> vi 1.sh
+
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+sudo apt install unzip
+unzip awscliv2.zip
+sudo ./aws/install
+
+curl -o kubectl https://amazon-eks.s3.us-west-2.amazonaws.com/1.19.6/2021-01-05/bin/linux/amd64/kubectl
+chmod +x ./kubectl
+sudo mv ./kubectl /usr/local/bin
+kubectl version --short --client
+
+curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
+sudo mv /tmp/eksctl /usr/local/bin
+eksctl version
+
+:wq!
+
+------> sudo chmod +x 1.sh
+
+------> ./1.sh
+
+-----> aws configure
+
+AKIAZKESKRNOHTIYG5MM
+
+N8n7c1OouhrIV78X7l8rtvxFD1C+67GGv0+tzEzc
+
+us-east-1
+
+eksctl create cluster --name=EKS-1 \
+                      --region=us-east-1 \
+                      --zones=us-east-1a,us-east-1b \
+                      --without-nodegroup
+
+eksctl utils associate-iam-oidc-provider \
+    --region us-east-1 \
+    --cluster EKS-1 \
+    --approve
+
+eksctl create nodegroup --cluster=EKS-1 \
+                       --region=us-east-1 \
+                       --name=node2 \
+                       --node-type=t3.medium \
+                       --nodes=3 \
+                       --nodes-min=2 \
+                       --nodes-max=4 \
+                       --node-volume-size=20 \
+                       --ssh-access \
+                       --ssh-public-key=Ec2Ubuntu \
+                       --managed \
+                       --asg-access \
+                       --external-dns-access \
+                       --full-ecr-access \
+                       --appmesh-access \
+                       --alb-ingress-access
+
+
+
+------> sudo apt install openjdk-17-jre-headless -y
+
+vi jen.sh
+
+sudo wget -O /usr/share/keyrings/jenkins-keyring.asc \
+  https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key
+echo "deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc]" \
+  https://pkg.jenkins.io/debian-stable binary/ | sudo tee \
+  /etc/apt/sources.list.d/jenkins.list > /dev/null
+sudo apt-get update
+sudo apt-get install jenkins -y
+
+sudo chmod +x jen.sh
+
+./jen.sh
+
+sudo apt install docker.io -y
+
+sudo chmod 666 /var/run/docker.sock
+
+##### Jenkins Plugins
+
+Docker
+Docker Pipeline 
+Kubernetes
+Kubernetes CLI
+Multibranch scan webhook trigger
+
+
+
+vi svc.yml
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: jenkins
+  namespace: webapps
+
+
+kubectl create namespace webapps
+
+kubectl apply -f svc.yml
+
+vi role.yaml
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: app-role
+  namespace: webapps
+rules:
+  - apiGroups:
+        - ""
+        - apps
+        - autoscaling
+        - batch
+        - extensions
+        - policy
+        - rbac.authorization.k8s.io
+    resources:
+      - pods
+      - componentstatuses
+      - configmaps
+      - daemonsets
+      - deployments
+      - events
+      - endpoints
+      - horizontalpodautoscalers
+      - ingress
+      - jobs
+      - limitranges
+      - namespaces
+      - nodes
+      - pods
+      - persistentvolumes
+      - persistentvolumeclaims
+      - resourcequotas
+      - replicasets
+      - replicationcontrollers
+      - serviceaccounts
+      - services
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+
+kubectl apply -f role.yml
+
+vi bind.yml
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: app-rolebinding
+  namespace: webapps 
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: app-role 
+subjects:
+- namespace: webapps 
+  kind: ServiceAccount
+  name: jenkins 
+
+
+kubectl apply -f bind.yml
+
+vi sec.yml
+
+apiVersion: v1
+kind: Secret
+type: kubernetes.io/service-account-token
+metadata:
+  name: mysecretname
+  annotations:
+    kubernetes.io/service-account.name: jenkins
+
+
+kubectl apply -f sec.yml -n webapps
+
+kubectl describe secret mysecretname -n webapps
+
+eksctl delete cluster --name EKS-1 --region us-east-1
+
+
+
+
+
+
+
+

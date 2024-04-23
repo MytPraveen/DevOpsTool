@@ -1,0 +1,698 @@
+
+
+The Ultimate CICD Corporate DevOps Pipeline Project | Real-Time DevOps Project
+
+##########Setup K8-Cluster using kubead [K8 Version-->1.28.1]
+
+----------------------------------------- PHASE 1
+
+### Using Ec2 install with t2.medium for master and worker 1 and worker 2 node
+
+sudo su
+
+vi 1.sh
+
+sudo apt-get update
+sudo apt install docker.io -y
+sudo chmod 666 /var/run/docker.sock
+sudo apt-get install -y apt-transport-https ca-certificates curl gnupg
+sudo mkdir -p -m 755 /etc/apt/keyrings
+curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.28/deb/ /' | sudo tee /etc/apt/sources.list.d/kubernetes.list
+
+sudo chmod +x 1.sh
+
+./1.sh
+
+sudo apt update
+
+sudo apt install -y kubeadm=1.28.1-1.1 kubelet=1.28.1-1.1 kubectl=1.28.1-1.1    #Install Kubernetes Components[On Master & Worker Node]
+
+sudo kubeadm init --pod-network-cidr=10.244.0.0/16   #Initialize Kubernetes Master Node [On MasterNode]
+
+#copy and paste the token in worker node 
+
+mkdir -p $HOME/.kube
+
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+
+sudo chown $(id -u):$(id -g) $HOME/.kube/config                ##Configure Kubernetes Cluster [On MasterNode]
+
+
+kubectl apply -f https://docs.projectcalico.org/v3.20/manifests/calico.yaml   #Deploy Networking Solution (Calico) [On MasterNode]
+
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v0.49.0/deploy/static/provider/baremetal/deploy.yaml    #Deploy Ingress Controller (NGINX) [On MasterNode]
+
+kubectl get nodes
+
+
+#Please go to this website https://github.com/Shopify/kubeaudit/releases and dowlaod the kubeaudit version to install on master node
+
+wget https://github.com/Shopify/kubeaudit/releases/download/v0.22.1/kubeaudit_0.22.1_linux_amd64.tar.gz
+
+tar -xvzf kubeaudit_0.22.1_linux_amd64.tar.gz
+
+sudo mv kubeaudit /usr/local/bin
+
+kubeaudit all
+
+-------------------------------- PHASE 2
+
+###### Next phase 2 Create a vm to install sonarqube and nexus. Create an instance with t2.medium with 20 GB
+
+#####install docker on both Sonarqube and nexus vm 
+ 
+ sudo apt update
+ 
+ vi dock.sh
+
+ # Add Docker's official GPG key:
+sudo apt-get update
+sudo apt-get install ca-certificates curl
+sudo install -m 0755 -d /etc/apt/keyrings
+sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+sudo chmod a+r /etc/apt/keyrings/docker.asc
+
+# Add the repository to Apt sources:
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+sudo apt-get update
+
+sudo chmod +x dock.sh
+
+./dock.sh
+
+sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+sudo chmod 666 /var/run/docker.sock
+
+docker pull hello-world
+
+-------------- Next run this command on sonarqube server
+
+docker run -d --name sonar -p 9000:9000 sonarqube:lts-community
+
+docker ps
+
+
+---------------- next run this command on nexus server
+
+docker run -d --name nexus -p 8081:8081 sonatype/nexus3
+
+
+------------------ set up jenkins use ec2 with t2.large with 30gb storage
+
+sudo apt update
+
+install java
+
+
+vi jen.sh
+
+sudo apt install openjdk-17-jre-headless -y
+sudo wget -O /usr/share/keyrings/jenkins-keyring.asc \
+  https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key
+echo deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] \
+  https://pkg.jenkins.io/debian-stable binary/ | sudo tee \
+  /etc/apt/sources.list.d/jenkins.list > /dev/null
+sudo apt-get update
+sudo apt-get install jenkins -y
+
+sudo chmod +x jen.sh
+
+./jen.sh
+
+##install docker also 
+
+vi dock.sh
+
+ # Add Docker's official GPG key:
+sudo apt-get update
+sudo apt-get install ca-certificates curl
+sudo install -m 0755 -d /etc/apt/keyrings
+sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+sudo chmod a+r /etc/apt/keyrings/docker.asc
+
+# Add the repository to Apt sources:
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+sudo apt-get update
+
+sudo chmod +x dock.sh
+
+./dock.sh
+
+sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+sudo chmod 666 /var/run/docker.sock
+
+---------------------------------------------------
+
+Create a git repository and name it as Boardgame
+
+Check the DevOps Shack video 48:53
+
+---------------------------------------------------
+
+Jenkins plugin
+
+sonarqube scanner
+Eclipse Temurin installer
+config file provider
+pipeline maven integration
+docker
+docker pipeline
+Kubernetes
+kuberneted credentials
+kubernetes client API
+kuberneted CLI
+Owasp denpendency check
+maven integration
+prometheus metrics
+
+
+
+Jenkins Pipeline script
+
+
+pipeline {
+    agent any
+    tools {
+        jdk 'jdk17'
+        maven 'maven3'
+    }
+    environment {
+        SCANNER_HOME= tool 'sonar-scanner'
+    }
+    stages {
+        stage('Git Checkout') {
+            steps {
+                git branch: 'main', credentialsId: 'git-cred', url: 'https://github.com/MytPraveen/Boardgame.git'
+            }
+        }
+        stage('Compile') {
+            steps {
+                sh "mvn compile"
+            }
+        }
+        stage('Test') {
+            steps {
+                sh "mvn test"
+            }
+        }
+        stage('File System Scan') {
+            steps {
+                sh "trivy fs --format table -o trivy-fs-report.html ."
+            }
+        }
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv('sonar') {
+                    sh """$SCANNER_HOME/bin/sonar-scanner \
+                        -Dsonar.projectName=BoardGame \
+                        -Dsonar.projectKey=BoardGame \
+                        -Dsonar.java.binaries=. \
+                        """
+                }
+            }
+        }
+        stage('Quality Gate') {
+            steps {
+                script {
+                    waitForQualityGate abortPipeline: false, credentialsId: 'sonar-token'
+                }
+            }
+        }
+        stage('Build') {
+            steps {
+                sh "mvn package"
+            }
+        }
+        stage('Publish To Nexus') {
+            steps {
+                withMaven(globalMavenSettingsConfig: 'global-settings-xml', jdk: 'jdk17', maven: 'maven3', mavenSettingsConfig: '', traceability: true) {
+                    sh "mvn deploy"
+                }
+            }
+        }
+        stage('Build & Tag Docker Image') {
+            steps {
+                script {
+                    withDockerRegistry(credentialsId: 'docker-cred', toolName: 'docker') {
+                        sh "docker build -t praveendevops95/boardshack:latest ."
+                    }
+                }
+            }
+        }
+        stage('Docker Image Scan') {
+            steps {
+                sh "trivy image --format table -o trivy-image-report.html praveendevops95/boardshack:latest"
+            }
+        }
+        stage('Push Docker Image') {
+            steps {
+                script {
+                    withDockerRegistry(credentialsId: 'docker-cred', toolName: 'docker') {
+                        sh "docker push praveendevops95/boardshack:latest"
+                    }
+                }
+            }
+        }
+        stage('Deploy To Kubernetes') {
+            steps {
+                withKubeConfig(caCertificate: '', clusterName: 'kubernetes', contextName: '', credentialsId: 'k8-cred', namespace: 'webapps', restrictKubeConfigAccess: false, serverUrl: 'https://172.31.8.146:6443') {
+                    sh "kubectl apply -f deployment-service.yaml"
+                }
+            }
+        }
+        stage('Verify the Deployment') {
+            steps {
+                withKubeConfig(caCertificate: '', clusterName: 'kubernetes', contextName: '', credentialsId: 'k8-cred', namespace: 'webapps', restrictKubeConfigAccess: false, serverUrl: 'https://172.31.8.146:6443') {
+                    sh "kubectl get pods -n webapps"
+                    sh "kubectl get svc -n webapps"
+                }
+            }
+        }
+    }
+    post {
+        always {
+            script {
+                def jobName = env.JOB_NAME
+                def buildNumber = env.BUILD_NUMBER
+                def pipelineStatus = currentBuild.result ?: 'UNKNOWN'
+                def bannerColor = pipelineStatus.toUpperCase() == 'SUCCESS' ? 'green' : 'red'
+                def body = """
+                    <html>
+                    <body>
+                    <div style="border: 4px solid ${bannerColor}; padding: 10px;">
+                    <h2>${jobName} - Build ${buildNumber}</h2>
+                    <div style="background-color: ${bannerColor}; padding: 10px;">
+                    <h3 style="color: white;">Pipeline Status: ${pipelineStatus.toUpperCase()}</h3>
+                    </div>
+                    <p>Check the <a href="${BUILD_URL}">console output</a>.</p>
+                    </div>
+                    </body>
+                    </html>
+                """
+                emailext(
+                    subject: "${jobName} - Build ${buildNumber} - ${pipelineStatus.toUpperCase()}",
+                    body: body,
+                    to: 'mosespraveen96@gmail.com',
+                    from: 'jenkins@example.com',
+                    replyTo: 'jenkins@example.com',
+                    mimeType: 'text/html',
+                    attachmentsPattern: 'trivy-image-report.html'
+                )
+            }
+        }
+    }
+}
+
+
+
+
+
+
+
+##### Go to Master node 
+
+vi svc.yaml
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: jenkins
+  namespace: webapps
+
+
+  :wq!
+
+  kubectl create ns webapps
+
+  kubectl apply -f svc.yaml
+
+  vi role.yaml
+
+  apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: app-role
+  namespace: webapps
+rules:
+  - apiGroups:
+        - ""
+        - apps
+        - autoscaling
+        - batch
+        - extensions
+        - policy
+        - rbac.authorization.k8s.io
+    resources:
+      - pods
+      - componentstatuses
+      - configmaps
+      - daemonsets
+      - deployments
+      - events
+      - endpoints
+      - horizontalpodautoscalers
+      - ingress
+      - jobs
+      - limitranges
+      - namespaces
+      - nodes
+      - pods
+      - persistentvolumes
+      - persistentvolumeclaims
+      - resourcequotas
+      - replicasets
+      - replicationcontrollers
+      - serviceaccounts
+      - services
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+
+    :wq!
+
+    kubectl apply -f role.yaml
+
+    vi bind.yaml
+
+    apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: app-rolebinding
+  namespace: webapps 
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: app-role 
+subjects:
+- namespace: webapps 
+  kind: ServiceAccount
+  name: jenkins 
+
+  kubectl apply -f bind.yaml
+
+  vi sec.yaml
+
+  apiVersion: v1
+kind: Secret
+type: kubernetes.io/service-account-token
+metadata:
+  name: mysecretname
+  annotations:
+    kubernetes.io/service-account.name: jenkins
+
+:wq!
+
+kubectl apply -f sec.yaml -n webapps
+
+kubectl describe secret mysecretname -n webapps
+
+#copy the token and go to jenkins server and credentials and add the credentials in secret text and paste the token password
+k8-cred
+
+------------- go to control plane 
+
+cd ~/.kube
+
+ls
+
+cat config
+
+#copy the kuberneted server end point example https://Ip:4567 
+
+
+#### Go to Jenkins server
+
+vi k.sh 
+
+curl -o kubectl https://amazon-eks.s3.us-west-2.amazonaws.com/1.19.6/2021-01-05/bin/linux/amd64/kubectl
+chmod +x ./kubectl
+sudo mv ./kubectl /usr/local/bin
+kubectl version --short --client
+
+:wq!
+
+sudo chmod +x k.sh
+
+./k.sh
+
+
+##create a monitor instance in ec2 with t2.large with 20GB storage
+
+### Install Prometheus
+
+sudo apt update
+
+wget https://github.com/prometheus/prometheus/releases/download/v2.51.0/prometheus-2.51.0.linux-amd64.tar.gz
+
+tar -xvf prometheus-2.51.0.linux-amd64.tar.gz
+
+rm -rf prometheus-2.51.0.linux-amd64.tar.gz
+
+ls
+
+cd prometheus-2.51.0.linux-amd64/
+
+./prometheus &
+
+port 9090
+
+###### Install Grafana
+
+sudo apt-get install -y adduser libfontconfig1 musl
+
+wget https://dl.grafana.com/enterprise/release/grafana-enterprise_10.4.0_amd64.deb
+
+sudo dpkg -i grafana-enterprise_10.4.0_amd64.deb
+
+sudo /bin/systemctl start grafana-server
+
+port 3000
+
+default pass:
+admin
+admin
+
+
+wget https://github.com/prometheus/blackbox_exporter/releases/download/v0.24.0/blackbox_exporter-0.24.0.linux-amd64.tar.gz
+
+tar -xvf blackbox_exporter-0.24.0.linux-amd64.tar.gz
+
+ls
+
+rm -rf blackbox_exporter-0.24.0.linux-amd64.tar.gz
+
+ls
+
+cd blackbox_exporter-0.24.0.linux-amd64/
+
+ls
+
+./blackbox_exporter &
+
+port 9115
+
+cd ..
+
+ls
+
+cd prometheus-2.51.0.linux-amd64/
+
+ls
+
+vi prometheus.yaml
+
+- job_name: 'blackbox'
+    metrics_path: /probe
+    params:
+      module: [http_2xx]  # Look for a HTTP 200 response.
+    static_configs:
+      - targets:
+        - http://prometheus.io    # Target to probe with http.
+        - https://prometheus.io   # Target to probe with https.
+        - http://example.com:8080 # Target to probe with http on port 8080.
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: 127.0.0.1:9115  # The blackbox exporter's real hostname:port.
+
+
+:wq!
+
+ls
+
+pgrep prometheus
+
+kill id
+
+./prometheus &
+
+
+
+install node expxoter
+
+In jenkins
+
+wget https://github.com/prometheus/node_exporter/releases/download/v1.7.0/node_exporter-1.7.0.linux-amd64.tar.gz
+
+tar -xvf node_exporter-1.7.0.linux-amd64.tar.gz
+
+rm -rf node_exporter-1.7.0.linux-amd64.tar.gz
+
+cd node_exporter-1.7.0.linux-amd64/
+
+ls
+
+./node_exporter &
+
+port 9100
+
+------------------------------------------------------------------
+
+
+Good corrected pipeline script 
+
+pipeline {
+    agent any
+    tools {
+        jdk 'jdk17'
+        maven 'maven3'
+    }
+    environment {
+        SCANNER_HOME= tool 'sonar-scanner'
+    }
+    stages {
+        stage('Git Checkout') {
+            steps {
+                git branch: 'main', credentialsId: 'git-cred', url: 'https://github.com/MytPraveen/Boardgame.git'
+            }
+        }
+        stage('Compile') {
+            steps {
+                sh "mvn compile"
+            }
+        }
+        stage('Test') {
+            steps {
+                sh "mvn test"
+            }
+        }
+        stage('File System Scan') {
+            steps {
+                sh "trivy fs --format table -o trivy-fs-report.html ."
+            }
+        }
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv('sonar') {
+                    sh """ $SCANNER_HOME/bin/sonar-scanner -Dsonar.projectName=BoardGame -Dsonar.projectKey=BoardGame \
+                        -Dsonar.java.binaries=. """
+                }
+            }
+        }
+        stage('Quality Gate') {
+            steps {
+                script {
+                    waitForQualityGate abortPipeline: false, credentialsId: 'sonar-token'
+                }
+            }
+        }
+        stage('Build') {
+            steps {
+                sh "mvn package"
+            }
+        }
+        stage('Publish To Nexus') {
+            steps {
+                withMaven(globalMavenSettingsConfig: 'global-settings-xml', jdk: 'jdk17', maven: 'maven3', mavenSettingsConfig: '', traceability: true) {
+                    sh "mvn clean package -DskipTests=true"
+                }
+            }
+        }
+        stage('Build & Tag Docker Image') {
+            steps {
+                script {
+                    withDockerRegistry(credentialsId: 'docker-cred', toolName: 'docker') {
+                        sh "docker build -t praveendevops95/boardshack:latest ."
+                    }
+                }
+            }
+        }
+        stage('Docker Image Scan') {
+            steps {
+                sh "trivy image --format table -o trivy-image-report.html praveendevops95/boardshack:latest"
+            }
+        }
+        stage('Push Docker Image') {
+            steps {
+                script {
+                    withDockerRegistry(credentialsId: 'docker-cred', toolName: 'docker') {
+                        sh "docker push praveendevops95/boardshack:latest"
+                    }
+                }
+            }
+        }
+        stage('Deploy To Kubernetes') {
+            steps {
+                withKubeConfig(caCertificate: '', clusterName: 'kubernetes', contextName: '', credentialsId: 'k8-cred', namespace: 'webapps', restrictKubeConfigAccess: false, serverUrl: 'https://172.31.81.50:6443') {
+                    sh "kubectl apply -f deployment-service.yaml"
+                }
+            }
+        }
+        stage('Verify the Deployment') {
+            steps {
+                withKubeConfig(caCertificate: '', clusterName: 'kubernetes', contextName: '', credentialsId: 'k8-cred', namespace: 'webapps', restrictKubeConfigAccess: false, serverUrl: 'https://172.31.81.50:6443') {
+                    sh "kubectl get pods -n webapps"
+                    sh "kubectl get svc -n webapps"
+                }
+            }
+        }
+    }
+    post {
+        always {
+            script {
+                def jobName = env.JOB_NAME
+                def buildNumber = env.BUILD_NUMBER
+                def pipelineStatus = currentBuild.result ?: 'UNKNOWN'
+                def bannerColor = pipelineStatus.toUpperCase() == 'SUCCESS' ? 'green' : 'red'
+                def body = """
+                    <html>
+                    <body>
+                    <div style="border: 4px solid ${bannerColor}; padding: 10px;">
+                    <h2>${jobName} - Build ${buildNumber}</h2>
+                    <div style="background-color: ${bannerColor}; padding: 10px;">
+                    <h3 style="color: white;">Pipeline Status: ${pipelineStatus.toUpperCase()}</h3>
+                    </div>
+                    <p>Check the <a href="${BUILD_URL}">console output</a>.</p>
+                    </div>
+                    </body>
+                    </html>
+                """
+                emailext(
+                    subject: "${jobName} - Build ${buildNumber} - ${pipelineStatus.toUpperCase()}",
+                    body: body,
+                    to: 'mosespraveen96@gmail.com',
+                    from: 'jenkins@example.com',
+                    replyTo: 'jenkins@example.com',
+                    mimeType: 'text/html',
+                    attachmentsPattern: 'trivy-image-report.html'
+                )
+            }
+        }
+    }
+}
+
+
+
+
+

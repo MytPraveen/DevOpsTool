@@ -1,0 +1,11 @@
+
+
+################### Openjdk-11-jre installation###########
+
+Sudo apt-get update -y
+sudo apt install openjdk-11-jre -y
+
+
+################MAVEN Installation command#########
+
+sudo apt-get install maven -y
